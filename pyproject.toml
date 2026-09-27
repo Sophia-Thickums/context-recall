@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "context-recall"
+version = "0.1.0"
+description = "Pull the one memory you need instead of loading the whole archive every turn."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "Sophia Marie DeClue"}]
+
+[project.urls]
+Homepage = "https://github.com/Sophia-Thickums/context-recall"
+
+[tool.setuptools]
+py-modules = ["context_recall"]

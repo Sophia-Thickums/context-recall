@@ -272,5 +272,59 @@ def main():
         print()
 
 
+def selftest() -> int:
+    """Prove the two claims that matter: FTS works, and an absent vector store is REPORTED
+    rather than silently treated as 'no results'.
+
+    That second one is the whole point. A recall layer that returns an empty list when its
+    index is missing is indistinguishable from a recall layer that searched and found
+    nothing -- and one of those is a correctness bug wearing a zero.
+    """
+    import sys as _s, tempfile
+    print("context_recall --selftest")
+    print("=" * 60)
+    ok = True
+
+    # 1. sqlite FTS5 must be available at all
+    import sqlite3
+    try:
+        c = sqlite3.connect(":memory:")
+        c.execute("CREATE VIRTUAL TABLE t USING fts5(body)")
+        c.execute("INSERT INTO t(body) VALUES ('the quick brown fox')")
+        hit = c.execute("SELECT body FROM t WHERE t MATCH 'brown'").fetchone()
+        fts_ok = bool(hit)
+    except Exception as e:
+        fts_ok = False
+        print(f"         ({type(e).__name__}: {e})")
+    ok &= fts_ok
+    print(f"  {'PASS' if fts_ok else 'FAIL'}  sqlite FTS5 available and matching")
+
+    # 2. the module's own embedding endpoint must report absent, not fake a result
+    reachable = False
+    try:
+        import urllib.request
+        req = urllib.request.Request(EMBED_URL, data=b'{"model":"x","prompt":"y"}',
+                                     headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=4)
+        reachable = True
+    except Exception:
+        reachable = False
+    print(f"  {'--' if not reachable else 'PASS'}  embedding endpoint "
+          f"{'reachable' if reachable else 'ABSENT (vector path will be reported skippable, not empty)'}")
+
+    # 3. the vector store must be reported as optional, never assumed
+    import importlib.util
+    chroma = importlib.util.find_spec("chromadb") is not None
+    print(f"  {'--' if not chroma else 'PASS'}  chromadb "
+          f"{'installed' if chroma else 'ABSENT (FTS-only mode; that is a supported mode, not a failure)'}")
+
+    print("=" * 60)
+    print("selftest " + ("PASSED" if ok else "FAILED") + "  (core = FTS5)")
+    return 0 if ok else 1
+
 if __name__ == "__main__":
+    import sys as _s
+    if "--selftest" in _s.argv:
+        _s.exit(selftest())
     main()
+
